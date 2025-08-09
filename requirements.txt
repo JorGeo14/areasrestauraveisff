@@ -3,5 +3,5 @@ plotly
 pytz
 geopandas
 folium
-streamlit_folium
+streamlit-folium
 folium.plugins
