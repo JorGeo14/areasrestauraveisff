@@ -61,13 +61,18 @@ try:
         folium.LayerControl().add_to(m)
 
         # Exibe o mapa interativo usando st_folium
-        # O parâmetro return_on_change captura os dados editados
+        # A saída agora contém informações sobre as edições
         st.header("Edite a Camada Espacial")
-        output = st_folium(m, width=700, height=500, return_on_change=True)
+        output = st_folium(m, width=700, height=500)
         
-        # Mostra os dados editados para demonstração
+        # Mostra os dados editados
         st.subheader("Dados Editados (GeoJSON)")
-        st.json(output)
+        
+        # Verifica se há novas feições ou edições
+        if output and 'all_drawings' in output:
+            st.write(output['all_drawings'])
+        else:
+            st.info("Nenhuma feição foi desenhada ou editada ainda.")
 
     else:
         st.warning("O arquivo uc.gpkg foi carregado, mas a camada espacial está vazia.")
@@ -77,4 +82,3 @@ except FileNotFoundError:
 
 except Exception as e:
     st.error(f"Ocorreu um erro ao carregar o arquivo: {e}")
-
