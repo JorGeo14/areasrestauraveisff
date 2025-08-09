@@ -1,98 +1,57 @@
+# Importa as bibliotecas necessárias
 import streamlit as st
-import pandas as pd
-import plotly.express as px
-import requests
-from datetime import datetime
-import pytz
+import geopandas as gpd
+import folium
+from streamlit_folium import folium_static
 
-# Function to fetch earthquake data
-def fetch_earthquake_data(url):
-    response = requests.get(url)
-    data = response.json()
-    
-    # Parse the data
-    features = data['features']
-    earthquakes = []
-    for feature in features:
-        properties = feature['properties']
-        geometry = feature['geometry']
-        utc_time = pd.to_datetime(properties['time'], unit='ms')
-        local_time = utc_time.tz_localize('UTC').tz_convert(pytz.timezone('America/Los_Angeles'))  # Convert to local timezone
-        earthquakes.append({
-            "place": properties['place'],
-            "magnitude": properties['mag'],
-            "time_utc": utc_time,
-            "time_local": local_time,
-            "latitude": geometry['coordinates'][1],
-            "longitude": geometry['coordinates'][0]
-        })
-    
-    return pd.DataFrame(earthquakes)
+# Título da aplicação
+st.title("Mapa com Camada Espacial do GeoPackage")
 
-# Fetch real-time earthquake data
-realtime_url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson"
-realtime_earthquake_data = fetch_earthquake_data(realtime_url)
+# Nome do arquivo GeoPackage
+gpkg_file = "uc.gpkg"
 
-# Fetch historical earthquake data
-historical_url = "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_month.geojson"
-historical_earthquake_data = fetch_earthquake_data(historical_url)
+# Tenta carregar o arquivo usando GeoPandas
+try:
+    gdf = gpd.read_file(gpkg_file)
 
-# Streamlit app layout
-st.title("Real-Time Earthquake Monitoring Webapp")
-st.markdown("This app visualizes real-time and historical earthquake data from the US Geological Survey (USGS).")
+    # Verifica se o GeoDataFrame não está vazio
+    if not gdf.empty:
+        # Reprojeta os dados para EPSG:4326 se necessário, que é o padrão para folium
+        if gdf.crs.to_epsg() != 4326:
+            gdf = gdf.to_crs(epsg=4326)
 
-# Filter by magnitude
-min_magnitude = st.slider("Minimum Magnitude", min_value=0.0, max_value=10.0, value=1.0, step=0.1)
-filtered_realtime_data = realtime_earthquake_data[realtime_earthquake_data["magnitude"] >= min_magnitude]
-filtered_historical_data = historical_earthquake_data[historical_earthquake_data["magnitude"] >= min_magnitude]
+        # Calcula o centro e o zoom do mapa com base na camada
+        bounds = gdf.total_bounds
+        center = [(bounds[1] + bounds[3]) / 2, (bounds[0] + bounds[2]) / 2]
+        
+        # Cria o mapa Folium centrado na camada
+        m = folium.Map(location=center, zoom_start=10)
 
-# Create a Plotly map for real-time earthquakes
-fig_realtime = px.scatter_mapbox(
-    filtered_realtime_data,
-    lat="latitude",
-    lon="longitude",
-    size="magnitude",
-    color="magnitude",
-    hover_name="place",
-    hover_data={"time_utc": True, "time_local": True, "magnitude": True},
-    zoom=1,
-    height=600,
-    title="Recent Earthquakes (Last Hour)"
-)
+        # Adiciona a camada espacial ao mapa.
+        # Use um estilo básico para visualização.
+        folium.GeoJson(
+            gdf,
+            name="Camada Espacial de uc.gpkg",
+            style_function=lambda feature: {
+                "fillColor": "blue",
+                "color": "black",
+                "weight": 1,
+                "fillOpacity": 0.5,
+            }
+        ).add_to(m)
 
-# Create a Plotly map for historical earthquakes
-fig_historical = px.scatter_mapbox(
-    filtered_historical_data,
-    lat="latitude",
-    lon="longitude",
-    size="magnitude",
-    color="magnitude",
-    hover_name="place",
-    hover_data={"time_utc": True, "time_local": True, "magnitude": True},
-    zoom=1,
-    height=600,
-    title="Historical Earthquakes (Last Month)"
-)
+        # Adiciona um controle de camadas para ligar/desligar a camada
+        folium.LayerControl().add_to(m)
 
-fig_realtime.update_layout(mapbox_style="open-street-map")
-fig_historical.update_layout(mapbox_style="open-street-map")
+        # Exibe o mapa na aplicação Streamlit
+        st.header("Camada Espacial de uc.gpkg")
+        folium_static(m)
+    else:
+        st.warning("O arquivo uc.gpkg foi carregado, mas a camada espacial está vazia.")
 
-# Display the maps
-st.plotly_chart(fig_realtime)
-st.plotly_chart(fig_historical)
+except FileNotFoundError:
+    st.error(f"O arquivo {gpkg_file} não foi encontrado. Por favor, coloque o arquivo no mesmo diretório que o script.")
 
-# Display the filtered raw data
-st.subheader("Filtered Real-Time Earthquake Data")
-st.write(filtered_realtime_data)
+except Exception as e:
+    st.error(f"Ocorreu um erro ao carregar o arquivo: {e}")
 
-st.subheader("Filtered Historical Earthquake Data")
-st.write(filtered_historical_data)
-
-# Additional Information
-st.sidebar.subheader("About This App")
-st.sidebar.info(
-    """
-    This application fetches real-time and historical earthquake data from the USGS API and visualizes it on interactive maps.
-    Use the slider to filter earthquakes by magnitude. The times are displayed in both UTC and local time.
-    """
-)
