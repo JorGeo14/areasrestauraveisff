@@ -4,3 +4,4 @@ pytz
 geopandas
 folium
 streamlit_folium
+folium.plugins
