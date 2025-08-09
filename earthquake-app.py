@@ -2,12 +2,10 @@
 import streamlit as st
 import geopandas as gpd
 import folium
-# Importa o componente st_folium que permite a interação
-from streamlit_folium import st_folium
-from folium.plugins import Draw
+from streamlit_folium import folium_static
 
 # Título da aplicação
-st.title("Mapa com Camada Espacial do GeoPackage (Editável)")
+st.title("Mapa com Camada Espacial do GeoPackage")
 
 # Nome do arquivo GeoPackage
 gpkg_file = "uc.gpkg"
@@ -29,23 +27,8 @@ try:
         # Cria o mapa Folium centrado na camada
         m = folium.Map(location=center, zoom_start=10)
 
-        # Adiciona o plugin de desenho para permitir a edição
-        Draw(
-            export=True,
-            filename="edited_data.geojson",
-            position="topleft",
-            draw_options={
-                "polyline": False,
-                "rectangle": True,
-                "polygon": True,
-                "circle": False,
-                "marker": True,
-                "circlemarker": False,
-            },
-            edit_options={"edit": True, "remove": True},
-        ).add_to(m)
-
         # Adiciona a camada espacial ao mapa.
+        # Use um estilo básico para visualização.
         folium.GeoJson(
             gdf,
             name="Camada Espacial de uc.gpkg",
@@ -57,23 +40,12 @@ try:
             }
         ).add_to(m)
 
-        # Adiciona um controle de camadas
+        # Adiciona um controle de camadas para ligar/desligar a camada
         folium.LayerControl().add_to(m)
 
-        # Exibe o mapa interativo usando st_folium
-        # A saída agora contém informações sobre as edições
-        st.header("Edite a Camada Espacial")
-        output = st_folium(m, width=700, height=500)
-        
-        # Mostra os dados editados
-        st.subheader("Dados Editados (GeoJSON)")
-        
-        # Verifica se há novas feições ou edições
-        if output and 'all_drawings' in output:
-            st.write(output['all_drawings'])
-        else:
-            st.info("Nenhuma feição foi desenhada ou editada ainda.")
-
+        # Exibe o mapa na aplicação Streamlit
+        st.header("Camada Espacial de uc.gpkg")
+        folium_static(m)
     else:
         st.warning("O arquivo uc.gpkg foi carregado, mas a camada espacial está vazia.")
 
@@ -82,3 +54,4 @@ except FileNotFoundError:
 
 except Exception as e:
     st.error(f"Ocorreu um erro ao carregar o arquivo: {e}")
+
