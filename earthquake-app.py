@@ -2,10 +2,12 @@
 import streamlit as st
 import geopandas as gpd
 import folium
-from streamlit_folium import folium_static
+# Importa o componente st_folium que permite a interação
+from streamlit_folium import st_folium
+from folium.plugins import Draw
 
 # Título da aplicação
-st.title("Mapa com Camada Espacial do GeoPackage")
+st.title("Mapa com Camada Espacial do GeoPackage (Editável)")
 
 # Nome do arquivo GeoPackage
 gpkg_file = "uc.gpkg"
@@ -27,8 +29,23 @@ try:
         # Cria o mapa Folium centrado na camada
         m = folium.Map(location=center, zoom_start=10)
 
+        # Adiciona o plugin de desenho para permitir a edição
+        Draw(
+            export=True,
+            filename="edited_data.geojson",
+            position="topleft",
+            draw_options={
+                "polyline": False,
+                "rectangle": True,
+                "polygon": True,
+                "circle": False,
+                "marker": True,
+                "circlemarker": False,
+            },
+            edit_options={"edit": True, "remove": True},
+        ).add_to(m)
+
         # Adiciona a camada espacial ao mapa.
-        # Use um estilo básico para visualização.
         folium.GeoJson(
             gdf,
             name="Camada Espacial de uc.gpkg",
@@ -40,12 +57,18 @@ try:
             }
         ).add_to(m)
 
-        # Adiciona um controle de camadas para ligar/desligar a camada
+        # Adiciona um controle de camadas
         folium.LayerControl().add_to(m)
 
-        # Exibe o mapa na aplicação Streamlit
-        st.header("Camada Espacial de uc.gpkg")
-        folium_static(m)
+        # Exibe o mapa interativo usando st_folium
+        # O parâmetro return_on_change captura os dados editados
+        st.header("Edite a Camada Espacial")
+        output = st_folium(m, width=700, height=500, return_on_change=True)
+        
+        # Mostra os dados editados para demonstração
+        st.subheader("Dados Editados (GeoJSON)")
+        st.json(output)
+
     else:
         st.warning("O arquivo uc.gpkg foi carregado, mas a camada espacial está vazia.")
 
