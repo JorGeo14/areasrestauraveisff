@@ -1,7 +1,4 @@
 streamlit
-plotly
-pytz
 geopandas
 folium
 streamlit-folium
-folium.plugins
